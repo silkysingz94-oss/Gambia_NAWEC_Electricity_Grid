@@ -1,0 +1,585 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SILKYSINGZ GEOAI | Gambia Electricity Grid Intelligence</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+<style>
+:root{
+ --bg:#080b19;--panel:#10152a;--panel2:#151b33;--line:#252d4c;
+ --text:#edf1ff;--muted:#929bb8;--pink:#ed48c7;--purple:#9279ff;
+ --cyan:#13c9f4;--green:#39df9a;--orange:#ffad38;--red:#ff526c;
+ --yellow:#ffd64d;--grey:#a3abc3;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);
+ font-family:Inter,Segoe UI,Arial,sans-serif;overflow:hidden}
+header{height:86px;padding:15px 22px;border-bottom:1px solid var(--line);
+ display:flex;align-items:center;justify-content:space-between;background:#090d1d}
+.brand{font-size:19px;font-weight:800;letter-spacing:.5px}
+.brand span{color:var(--pink)}
+.subhead{font-size:11px;color:var(--muted);margin-top:5px}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.status{font-size:11px;padding:7px 10px;border:1px solid #34405e;border-radius:20px;color:#b8c5e8}
+button,select,input{font:inherit}
+button{border:1px solid #3a4568;background:#202847;color:#edf1ff;border-radius:7px;
+ padding:9px 12px;cursor:pointer;font-size:12px}
+button:hover{border-color:var(--pink);background:#2b3153}
+button.primary{background:#9b328d;border-color:#d24ebd}
+button:disabled{opacity:.5;cursor:wait}
+.layout{height:calc(100% - 86px);display:grid;grid-template-columns:minmax(260px,1fr) minmax(400px,1fr) minmax(260px,1fr);gap:10px;padding:10px}
+.panel{min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.side{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#394363 transparent}
+.panel.center{display:flex;flex-direction:column;overflow:hidden;position:relative}
+.panel-title{padding:14px 15px;border-bottom:1px solid var(--line);font-size:12px;
+ font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#c7d0ee}
+.section{padding:13px 14px;border-bottom:1px solid var(--line)}
+.section h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#aab5d7;margin:0 0 11px}
+label{display:block;color:var(--muted);font-size:11px;margin:9px 0 5px}
+select,input[type=text]{width:100%;background:#090f22;color:var(--text);border:1px solid #303b5d;
+ padding:9px;border-radius:6px;outline:none}
+input[type=checkbox]{accent-color:var(--pink);margin-right:7px}
+.check{display:flex;align-items:center;font-size:12px;color:#d5dcf1;margin:10px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.btnrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.btnrow button{flex:1}
+#maphead{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;
+ border-bottom:1px solid var(--line);gap:8px}
+#maphead strong{font-size:12px;letter-spacing:.8px}
+#mapwrap{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
+#map{position:absolute;inset:0;background:#0b1025}
+.mapnote{position:absolute;z-index:500;bottom:12px;left:12px;max-width:85%;
+ background:#0a1023e8;border:1px solid #333d60;padding:8px 10px;border-radius:7px;
+ color:#aab5d7;font-size:10px;pointer-events:none}
+.leaflet-container{background:#0b1025}
+.leaflet-control-attribution{background:#090d1dcc!important;color:#8792b3!important}
+.leaflet-control-attribution a{color:#b5a3ff!important}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.kpi{background:var(--panel2);border:1px solid #273253;border-radius:8px;padding:11px}
+.kpi .v{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.kpi .k{font-size:10px;color:var(--muted);margin-top:5px}
+.kpi.pink .v{color:var(--pink)}.kpi.cyan .v{color:var(--cyan)}
+.kpi.green .v{color:var(--green)}.kpi.orange .v{color:var(--orange)}
+.chartbox{padding:12px 13px;border-bottom:1px solid var(--line)}
+.chartbox h3{font-size:11px;color:#aab5d7;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px}
+.chartbox canvas{width:100%!important;height:190px!important}
+.legend{display:flex;flex-wrap:wrap;gap:11px;padding:12px 14px;border-top:1px solid var(--line)}
+.legitem{display:flex;align-items:center;gap:6px;font-size:10px;color:#c5cce2}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;box-shadow:0 0 8px currentColor}
+.linekey{width:25px;height:3px;display:inline-block;box-shadow:0 0 7px currentColor}
+.log{font-size:10px;line-height:1.6;color:#aeb9d7;white-space:pre-wrap;max-height:120px;overflow:auto}
+.tablewrap{overflow:auto;max-height:260px}
+table{border-collapse:collapse;width:100%;font-size:10px}
+th,td{padding:8px 7px;text-align:left;border-bottom:1px solid #283252;white-space:nowrap}
+th{color:#aab5d7;background:#141b34;position:sticky;top:0}
+td{color:#d5dcf1}
+.small{font-size:10px;color:var(--muted);line-height:1.5}
+.tag{font-size:10px;color:#b9c6e7;background:#202947;padding:4px 7px;border-radius:5px}
+.plant-marker{border-radius:50%;border:1px solid #ffffffaa;box-shadow:0 0 7px currentColor,0 0 16px currentColor}
+.line-glow{filter:drop-shadow(0 0 4px currentColor)}
+@media(max-width:900px){
+ html,body{height:auto;min-height:100%;overflow:auto}
+ header{height:auto;min-height:82px;align-items:flex-start}
+ .layout{height:auto;display:flex;flex-direction:column}
+ .side{overflow:visible;max-height:none}
+ .panel.center{height:65vh;min-height:480px;flex:none}
+ #mapwrap{min-height:0}
+}
+</style>
+</head>
+<body>
+<header>
+ <div>
+  <div class="brand">SILKYSINGZ <span>GEOAI</span> | GAMBIA ELECTRICITY GRID</div>
+  <div class="subhead">NAWEC POWER INFRASTRUCTURE • GENERATION • SUBSTATIONS • TRANSMISSION</div>
+ </div>
+ <div class="header-right">
+  <span class="status" id="dataStatus">Waiting for data</span>
+  <button onclick="refreshData()" class="primary" id="refreshBtn">↻ Load / Refresh data</button>
+ </div>
+</header>
+
+<main class="layout">
+<!-- LEFT CONTROLS -->
+<aside class="panel side">
+ <div class="panel-title">01 / Network controls</div>
+
+ <div class="section">
+  <h3>Display layers</h3>
+  <label class="check"><input type="checkbox" id="showPlants" checked> Power plants and generators</label>
+  <label class="check"><input type="checkbox" id="showSubs" checked> Substations and transformers</label>
+  <label class="check"><input type="checkbox" id="showLines" checked> Power lines and cables</label>
+  <label class="check"><input type="checkbox" id="showTowers" checked> Towers and poles</label>
+  <label class="check"><input type="checkbox" id="showLabels"> Show feature labels</label>
+ </div>
+
+ <div class="section">
+  <h3>Electricity technology</h3>
+  <label class="check"><input type="checkbox" class="tech" value="nuclear" checked> <span style="color:var(--yellow)">●</span>&nbsp; Nuclear</label>
+  <label class="check"><input type="checkbox" class="tech" value="hydro" checked> <span style="color:var(--cyan)">●</span>&nbsp; Hydro</label>
+  <label class="check"><input type="checkbox" class="tech" value="wind" checked> <span style="color:var(--green)">●</span>&nbsp; Wind</label>
+  <label class="check"><input type="checkbox" class="tech" value="solar" checked> <span style="color:var(--orange)">●</span>&nbsp; Solar</label>
+  <label class="check"><input type="checkbox" class="tech" value="coal" checked> <span style="color:var(--red)">●</span>&nbsp; Coal</label>
+  <label class="check"><input type="checkbox" class="tech" value="gas" checked> <span style="color:var(--purple)">●</span>&nbsp; Gas / thermal</label>
+  <label class="check"><input type="checkbox" class="tech" value="other" checked> <span style="color:var(--grey)">●</span>&nbsp; Other / unspecified</label>
+ </div>
+
+ <div class="section">
+  <h3>Voltage filter</h3>
+  <select id="voltageFilter">
+   <option value="all">All mapped voltages</option>
+   <option value="225000">225 kV</option>
+   <option value="66000">66 kV</option>
+   <option value="33000">33 kV</option>
+   <option value="11000">11 kV</option>
+   <option value="400">0.4 kV</option>
+   <option value="unknown">Voltage not tagged</option>
+  </select>
+  <label>Basemap</label>
+  <select id="basemap">
+   <option value="dark">Dark map</option>
+   <option value="sat">Satellite</option>
+   <option value="street">Street map</option>
+  </select>
+ </div>
+
+ <div class="section">
+  <h3>Map navigation</h3>
+  <div class="btnrow">
+   <button onclick="zoomGambia()">Gambia extent</button>
+   <button onclick="zoomGBA()">Greater Banjul</button>
+  </div>
+  <div class="btnrow">
+   <button onclick="map.setView([13.4549,-16.579],13)">Brikama</button>
+   <button onclick="map.setView([13.4432,-16.681])">Jambur</button>
+  </div>
+ </div>
+
+ <div class="section">
+  <h3>Data download</h3>
+  <div class="btnrow">
+   <button onclick="downloadGeoJSON()">Export GeoJSON</button>
+   <button onclick="downloadCSV()">Export CSV</button>
+  </div>
+  <p class="small">Exports contain the features returned by the online OpenStreetMap query, including their available tags and geometry.</p>
+ </div>
+
+ <div class="section">
+  <h3>Data source / status</h3>
+  <div id="log" class="log">The dashboard has not queried the online map database yet.</div>
+ </div>
+</aside>
+
+<!-- MAP -->
+<section class="panel center">
+ <div id="maphead">
+  <strong>02 / GAMBIA NATIONAL ELECTRICITY NETWORK</strong>
+  <span class="tag" id="featureCount">0 mapped features</span>
+ </div>
+ <div id="mapwrap">
+  <div id="map"></div>
+  <div class="mapnote">Schematic visualisation of mapped power infrastructure. Line colours represent tagged voltage classes, not measured power flow.</div>
+ </div>
+ <div class="legend">
+  <span class="legitem"><i class="dot" style="color:#ffad38;background:#ffad38"></i> Solar</span>
+  <span class="legitem"><i class="dot" style="color:#13c9f4;background:#13c9f4"></i> Hydro</span>
+  <span class="legitem"><i class="dot" style="color:#39df9a;background:#39df9a"></i> Wind</span>
+  <span class="legitem"><i class="dot" style="color:#9279ff;background:#9279ff"></i> Gas / thermal</span>
+  <span class="legitem"><i class="dot" style="color:#ff526c;background:#ff526c"></i> Coal</span>
+  <span class="legitem"><i class="dot" style="color:#a3abc3;background:#a3abc3"></i> Other</span>
+  <span class="legitem"><i class="linekey" style="background:#ed48c7;color:#ed48c7"></i> 225 kV</span>
+  <span class="legitem"><i class="linekey" style="background:#9279ff;color:#9279ff"></i> 33–66 kV</span>
+  <span class="legitem"><i class="linekey" style="background:#13c9f4;color:#13c9f4"></i> 11 kV / LV</span>
+ </div>
+</section>
+
+<!-- RIGHT ANALYTICS -->
+<aside class="panel side">
+ <div class="panel-title">03 / Grid analytics</div>
+ <div class="kpis">
+  <div class="kpi pink"><div class="v" id="plantsKPI">—</div><div class="k">Mapped power plants</div></div>
+  <div class="kpi cyan"><div class="v" id="subsKPI">—</div><div class="k">Substations / transformers</div></div>
+  <div class="kpi green"><div class="v" id="lineKPI">—</div><div class="k">Mapped line length (km)</div></div>
+  <div class="kpi orange"><div class="v" id="capacityKPI">—</div><div class="k">Tagged capacity (MW)</div></div>
+  <div class="kpi"><div class="v" id="towersKPI">—</div><div class="k">Mapped towers / poles</div></div>
+  <div class="kpi"><div class="v" id="totalKPI">—</div><div class="k">Total mapped features</div></div>
+ </div>
+
+ <div class="chartbox">
+  <h3>Mapped generation technologies</h3>
+  <canvas id="techChart"></canvas>
+ </div>
+ <div class="chartbox">
+  <h3>Power lines by voltage class</h3>
+  <canvas id="voltageChart"></canvas>
+ </div>
+
+ <div class="section">
+  <h3>Network feature inventory</h3>
+  <div class="tablewrap">
+   <table>
+    <thead><tr><th>Feature</th><th>Count</th><th>Length km</th></tr></thead>
+    <tbody id="inventory"><tr><td colspan="3">Load online data to populate</td></tr></tbody>
+   </table>
+  </div>
+ </div>
+
+ <div class="section">
+  <h3>Selected feature</h3>
+  <div id="featureInfo" class="small">Click a plant, substation or line on the map to inspect its available OpenStreetMap attributes.</div>
+ </div>
+
+ <div class="section">
+  <h3>Methodology and data limitations</h3>
+  <p class="small">
+   Features are queried live from OpenStreetMap using the Overpass API. The map displays objects tagged as power plants, generators, substations, transformers, power lines, minor lines, cables, towers and poles within the Gambia query area.
+   <br><br>
+   Line length is calculated from the mapped geometry. Capacity is summed only where a capacity tag can be interpreted as MW. Untagged or incomplete infrastructure is not estimated.
+   <br><br>
+   This is an open-data screening and visualisation tool, not a live SCADA system, asset-condition survey, outage map, or official NAWEC engineering database. A missing feature does not mean the infrastructure does not exist.
+  </p>
+ </div>
+</aside>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const log = (s) => { $('log').textContent = s; };
+const GAMBIA_BOUNDS = [[13.0,-16.9],[13.85,-13.75]];
+
+const map = L.map('map',{zoomControl:true,preferCanvas:true}).setView([13.45,-15.55],8);
+const baseLayers = {
+ dark:L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  {subdomains:'abcd',maxZoom:20,attribution:'© OpenStreetMap © CARTO'}),
+ sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom:19,attribution:'Tiles © Esri'}),
+ street:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {maxZoom:19,attribution:'© OpenStreetMap contributors'})
+};
+let activeBase=baseLayers.dark.addTo(map);
+const lineLayer=L.layerGroup().addTo(map);
+const plantLayer=L.layerGroup().addTo(map);
+const subLayer=L.layerGroup().addTo(map);
+const towerLayer=L.layerGroup().addTo(map);
+let allFeatures=[];
+let techChart=null,voltageChart=null;
+
+function zoomGambia(){map.fitBounds(GAMBIA_BOUNDS);}
+function zoomGBA(){map.fitBounds([[13.30,-16.85],[13.60,-16.25]]);}
+
+$('basemap').addEventListener('change',e=>{
+ map.removeLayer(activeBase);
+ activeBase=baseLayers[e.target.value];
+ activeBase.addTo(map);
+ activeBase.bringToBack();
+ setTimeout(()=>map.invalidateSize(),150);
+});
+
+['showPlants','showSubs','showLines','showTowers','showLabels','voltageFilter'].forEach(id=>{
+ $(id).addEventListener('change',renderFeatures);
+});
+document.querySelectorAll('.tech').forEach(x=>x.addEventListener('change',renderFeatures));
+
+function getTags(el){return el.tags||{};}
+function hasPower(t,vals){return vals.includes((t.power||'').toLowerCase());}
+function featureGeometry(el){
+ if(el.type==='node' && Number.isFinite(el.lat) && Number.isFinite(el.lon))
+  return {type:'Point',coordinates:[el.lon,el.lat]};
+ if(el.geometry && el.geometry.length>1){
+  const coords=el.geometry.filter(p=>Number.isFinite(p.lon)&&Number.isFinite(p.lat)).map(p=>[p.lon,p.lat]);
+  if(coords.length<2)return null;
+  const closed=coords.length>3 && coords[0][0]===coords.at(-1)[0] && coords[0][1]===coords.at(-1)[1];
+  if(closed)return {type:'Polygon',coordinates:[coords]};
+  return {type:'LineString',coordinates:coords};
+ }
+ return null;
+}
+function featureType(t){
+ const p=(t.power||'').toLowerCase();
+ if(['plant','generator'].includes(p))return 'plant';
+ if(['substation','transformer'].includes(p))return 'substation';
+ if(['line','minor_line','cable'].includes(p))return 'line';
+ if(['tower','pole','portal'].includes(p))return 'tower';
+ return 'other';
+}
+function technology(t){
+ const s=((t['plant:source']||t['generator:source']||t['generator:method']||t['fuel']||t['source']||'')+'').toLowerCase();
+ if(/solar|photovoltaic|sun/.test(s))return 'solar';
+ if(/wind/.test(s))return 'wind';
+ if(/hydro|water/.test(s))return 'hydro';
+ if(/nuclear/.test(s))return 'nuclear';
+ if(/coal/.test(s))return 'coal';
+ if(/gas|oil|diesel|thermal|combustion|heavy fuel/.test(s))return 'gas';
+ return 'other';
+}
+const techColors={solar:'#ffad38',wind:'#39df9a',hydro:'#13c9f4',nuclear:'#ffd64d',coal:'#ff526c',gas:'#9279ff',other:'#a3abc3'};
+function voltageValue(t){
+ const raw=String(t.voltage||t['line:voltage']||'').split(';')[0].trim().toLowerCase();
+ if(!raw)return null;
+ const n=parseFloat(raw.replace(/[^\d.]/g,''));
+ if(!Number.isFinite(n))return null;
+ if(raw.includes('kv'))return n*1000;
+ return n;
+}
+function voltageColor(v){
+ if(v===null)return '#7984a8';
+ if(v>=200000)return '#ed48c7';
+ if(v>=50000)return '#9279ff';
+ if(v>=10000)return '#13c9f4';
+ return '#a3abc3';
+}
+function capacityMW(t){
+ const keys=['plant:output:electricity','generator:output:electricity','capacity','generator:capacity'];
+ for(const k of keys){
+  if(!t[k])continue;
+  const s=String(t[k]).toLowerCase().replace(/,/g,'');
+  const m=s.match(/([\d.]+)\s*(mw|kw|gw)?/);
+  if(!m)continue;
+  let n=Number(m[1]),unit=m[2]||'mw';
+  if(unit==='kw')n/=1000;
+  if(unit==='gw')n*=1000;
+  if(Number.isFinite(n)&&n>0)return n;
+ }
+ return null;
+}
+function featureName(t){
+ return t.name||t['name:en']||t.operator||t.ref||`${t.power||'Power feature'} (unnamed)`;
+}
+function makeFeature(el){
+ const tags=getTags(el),geometry=featureGeometry(el);
+ if(!geometry)return null;
+ return {type:'Feature',id:`${el.type}/${el.id}`,geometry,properties:{
+  osm_type:el.type,osm_id:el.id,...tags,
+  feature_type:featureType(tags),
+  technology:technology(tags),
+  capacity_mw:capacityMW(tags),
+  voltage_v:voltageValue(tags),
+  display_name:featureName(tags)
+ }};
+}
+
+const OVERPASS_ENDPOINTS=[
+ 'https://overpass-api.de/api/interpreter',
+ 'https://overpass.kumi.systems/api/interpreter',
+ 'https://overpass.private.coffee/api/interpreter'
+];
+
+async function overpassQuery(){
+ const q=`[out:json][timeout:90];
+ (
+  way["power"~"^(line|minor_line|cable|plant|substation|generator|transformer|tower|pole)$"](13.0,-16.9,13.85,-13.75);
+  relation["power"~"^(line|minor_line|cable|plant|substation|generator)$"](13.0,-16.9,13.85,-13.75);
+  node["power"~"^(plant|substation|generator|transformer|tower|pole)$"](13.0,-16.9,13.85,-13.75);
+ );
+ out body geom;`;
+ let lastError;
+ for(const endpoint of OVERPASS_ENDPOINTS){
+  try{
+   const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+    body:'data='+encodeURIComponent(q)});
+   if(!r.ok)throw new Error(`${endpoint}: HTTP ${r.status}`);
+   const data=await r.json();
+   if(!data.elements)throw new Error('Unexpected Overpass response');
+   return data.elements;
+  }catch(e){lastError=e;log(`Trying online map source...\n${e.message}`);}
+ }
+ throw lastError||new Error('All Overpass servers failed');
+}
+
+async function refreshData(){
+ const btn=$('refreshBtn');btn.disabled=true;
+ $('dataStatus').textContent='Loading online data…';
+ log('Connecting to OpenStreetMap Overpass API…\nRequesting power infrastructure across The Gambia.');
+ try{
+  const elements=await overpassQuery();
+  const byId=new Map();
+  elements.forEach(el=>{
+   const f=makeFeature(el);
+   if(f)byId.set(f.id,f);
+  });
+  allFeatures=[...byId.values()];
+  if(!allFeatures.length)throw new Error('The online query returned no usable mapped geometries.');
+  renderFeatures();
+  updateAnalytics();
+  $('dataStatus').textContent=`Loaded ${allFeatures.length.toLocaleString()} features`;
+  log(`Successfully loaded ${allFeatures.length.toLocaleString()} mapped power features.\nSource: OpenStreetMap / Overpass API\nQuery area: Gambia bounding box\nRetrieved: ${new Date().toLocaleString()}\n\nRemember: OpenStreetMap coverage is incomplete and is not a verified NAWEC asset register.`);
+ }catch(e){
+  $('dataStatus').textContent='Data request failed';
+  log(`Unable to load the live power network.\n${e.message}\n\nCheck your internet connection, browser permissions or try refreshing later. Overpass services may temporarily rate-limit requests.`);
+ }finally{
+  btn.disabled=false;
+  setTimeout(()=>map.invalidateSize(),200);
+ }
+}
+
+function isSelectedVoltage(f){
+ const filter=$('voltageFilter').value,v=f.properties.voltage_v;
+ if(filter==='all')return true;
+ if(filter==='unknown')return v===null;
+ return v!==null && Math.round(v)===Number(filter);
+}
+function isTechVisible(f){
+ const selected=[...document.querySelectorAll('.tech:checked')].map(x=>x.value);
+ return selected.includes(f.properties.technology);
+}
+function addLabel(layer,f){
+ if(!$('showLabels').checked)return;
+ const c=layer.getBounds?layer.getBounds().getCenter():layer.getLatLng?.();
+ if(c)layer.bindTooltip(f.properties.display_name,{direction:'top',sticky:true});
+}
+function popupHTML(f){
+ const p=f.properties;
+ const entries=[
+  ['Feature',p.feature_type],['Name',p.display_name],['Technology',p.technology],
+  ['Operator',p.operator],['Voltage',p.voltage||'Not tagged'],
+  ['Capacity',p.capacity_mw!==null&&p.capacity_mw!==undefined?`${p.capacity_mw} MW`:'Not tagged'],
+  ['Fuel / source',p.fuel||p['plant:source']||p['generator:source']||'Not tagged'],
+  ['OSM reference',`${p.osm_type}/${p.osm_id}`]
+ ];
+ return `<div style="min-width:190px;color:#182039"><b>${esc(p.display_name)}</b><hr>`+
+ entries.filter(x=>x[1]!==undefined).map(x=>`<div><b>${esc(x[0])}:</b> ${esc(String(x[1]))}</div>`).join('')+
+ `<div style="margin-top:6px"><a target="_blank" href="https://www.openstreetmap.org/${p.osm_type}/${p.osm_id}">Open OSM feature</a></div></div>`;
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function renderFeatures(){
+ [lineLayer,plantLayer,subLayer,towerLayer].forEach(l=>l.clearLayers());
+ const counts={};
+ allFeatures.forEach(f=>{
+  const p=f.properties,type=p.feature_type;
+  counts[type]=(counts[type]||0)+1;
+  if(type==='plant' && !$('showPlants').checked)return;
+  if(type==='substation' && !$('showSubs').checked)return;
+  if(type==='line' && !$('showLines').checked)return;
+  if(type==='tower' && !$('showTowers').checked)return;
+  if(type==='plant' && !isTechVisible(f))return;
+  if(type==='line' && !isSelectedVoltage(f))return;
+
+  const popup=popupHTML(f);
+  let layer=null;
+  if(type==='line' && f.geometry.type==='LineString'){
+   const color=voltageColor(p.voltage_v);
+   const weight=p.voltage_v>=200000?3.7:p.voltage_v>=30000?2.8:1.8;
+   layer=L.geoJSON(f,{style:{color,weight,opacity:.92,lineCap:'round'}});
+   layer.eachLayer(x=>x.bindPopup(popup));
+   lineLayer.addLayer(layer);
+  }else if(type==='plant'){
+   const color=techColors[p.technology]||techColors.other;
+   const radius=p.capacity_mw?Math.max(5,Math.min(15,5+Math.sqrt(p.capacity_mw))):4;
+   layer=L.geoJSON(f,{pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{
+    radius,weight:1.2,color:'#ffffff',fillColor:color,fillOpacity:.95
+   }),style:{color,weight:2,fillColor:color,fillOpacity:.55}});
+   layer.eachLayer(x=>x.bindPopup(popup));
+   plantLayer.addLayer(layer);
+  }else if(type==='substation'){
+   layer=L.geoJSON(f,{pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{
+    radius:5,weight:1.5,color:'#fff',fillColor:'#13c9f4',fillOpacity:.95
+   }),style:{color:'#13c9f4',weight:2,fillColor:'#13c9f4',fillOpacity:.35}});
+   layer.eachLayer(x=>x.bindPopup(popup));
+   subLayer.addLayer(layer);
+  }else if(type==='tower'){
+   layer=L.geoJSON(f,{pointToLayer:(feature,latlng)=>L.circleMarker(latlng,{
+    radius:2.7,weight:1,color:'#d8dff8',fillColor:'#a3abc3',fillOpacity:.8
+   })});
+   layer.eachLayer(x=>x.bindPopup(popup));
+   towerLayer.addLayer(layer);
+  }
+ });
+ $('featureCount').textContent=`${allFeatures.length.toLocaleString()} mapped features`;
+}
+
+function updateAnalytics(){
+ const plants=allFeatures.filter(f=>f.properties.feature_type==='plant');
+ const subs=allFeatures.filter(f=>f.properties.feature_type==='substation');
+ const lines=allFeatures.filter(f=>f.properties.feature_type==='line');
+ const towers=allFeatures.filter(f=>f.properties.feature_type==='tower');
+ let lineKm=0;
+ lines.forEach(f=>{try{lineKm+=turf.length(f,{units:'kilometers'});}catch(e){}});
+ const capacity=plants.reduce((s,f)=>s+(f.properties.capacity_mw||0),0);
+ $('plantsKPI').textContent=plants.length.toLocaleString();
+ $('subsKPI').textContent=subs.length.toLocaleString();
+ $('lineKPI').textContent=lineKm.toFixed(1);
+ $('capacityKPI').textContent=capacity?capacity.toFixed(1):'—';
+ $('towersKPI').textContent=towers.length.toLocaleString();
+ $('totalKPI').textContent=allFeatures.length.toLocaleString();
+
+ const techs=['solar','hydro','wind','nuclear','coal','gas','other'];
+ const techCounts=techs.map(t=>plants.filter(f=>f.properties.technology===t).length);
+ const voltages=[
+  {label:'225 kV',min:200000,max:Infinity},
+  {label:'66 kV',min:50000,max:200000},
+  {label:'33 kV',min:30000,max:50000},
+  {label:'11 kV',min:10000,max:30000},
+  {label:'Below 11 kV',min:0,max:10000},
+  {label:'Unknown',min:null,max:null}
+ ];
+ const voltageCounts=voltages.map(v=>lines.filter(f=>{
+  const n=f.properties.voltage_v;
+  return v.min===null?n===null:n!==null&&n>=v.min&&n<v.max;
+ }).length);
+
+ if(techChart)techChart.destroy();
+ techChart=new Chart($('techChart'),{
+  type:'doughnut',
+  data:{labels:techs.map(x=>x[0].toUpperCase()+x.slice(1)),
+   datasets:[{data:techCounts,backgroundColor:techs.map(t=>techColors[t]),borderColor:'#10152a',borderWidth:3}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',
+   labels:{color:'#c5cce2',font:{size:10},boxWidth:9,padding:10}}}}
+ });
+ if(voltageChart)voltageChart.destroy();
+ voltageChart=new Chart($('voltageChart'),{
+  type:'bar',
+  data:{labels:voltages.map(v=>v.label),datasets:[{label:'Mapped line features',data:voltageCounts,
+   backgroundColor:['#ed48c7','#9279ff','#9279ff','#13c9f4','#a3abc3','#59627f'],borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,
+   plugins:{legend:{display:false}},
+   scales:{x:{ticks:{color:'#aab5d7',font:{size:9}},grid:{display:false}},
+    y:{beginAtZero:true,ticks:{color:'#aab5d7',precision:0},grid:{color:'#283252'}}}}
+ });
+ const inventory=[
+  ['Power plants / generators',plants.length,'—'],
+  ['Substations / transformers',subs.length,'—'],
+  ['Power lines / cables',lines.length,lineKm.toFixed(1)],
+  ['Towers / poles',towers.length,'—']
+ ];
+ $('inventory').innerHTML=inventory.map(r=>`<tr><td>${r[0]}</td><td>${r[1].toLocaleString()}</td><td>${r[2]}</td></tr>`).join('');
+}
+
+function downloadFile(content,name,type){
+ const blob=new Blob([content],{type}),url=URL.createObjectURL(blob);
+ const a=document.createElement('a');a.href=url;a.download=name;a.click();
+ URL.revokeObjectURL(url);
+}
+function downloadGeoJSON(){
+ if(!allFeatures.length)return alert('Load online data first.');
+ downloadFile(JSON.stringify({type:'FeatureCollection',features:allFeatures},null,2),
+  'Gambia_NAWEC_OpenStreetMap_Power_Infrastructure.geojson','application/geo+json');
+}
+function downloadCSV(){
+ if(!allFeatures.length)return alert('Load online data first.');
+ const cols=['osm_type','osm_id','display_name','feature_type','technology','capacity_mw','voltage','operator','fuel','name','power'];
+ const rows=[cols.join(',')];
+ allFeatures.forEach(f=>{
+  const p=f.properties;
+  rows.push(cols.map(k=>`"${String(p[k]??'').replace(/"/g,'""')}"`).join(','));
+ });
+ downloadFile(rows.join('\n'),'Gambia_Power_Infrastructure_Inventory.csv','text/csv');
+}
+map.on('click',()=>{});
+map.on('popupopen',e=>{
+ const popup=e.popup;
+ // Keep map inspection independent from the analytics panel.
+});
+window.addEventListener('resize',()=>setTimeout(()=>map.invalidateSize(),100));
+setTimeout(()=>map.invalidateSize(),300);
+refreshData();
+</script>
+</body>
+</html>
